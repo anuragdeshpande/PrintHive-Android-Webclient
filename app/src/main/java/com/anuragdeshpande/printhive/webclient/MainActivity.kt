@@ -24,6 +24,7 @@ import com.anuragdeshpande.printhive.webclient.data.ServerPreferences
 import com.anuragdeshpande.printhive.webclient.nfc.PrintHiveNfcHandler
 import com.anuragdeshpande.printhive.webclient.service.PrintHiveWebSocketService
 import com.anuragdeshpande.printhive.webclient.ui.ServerConfigDialog
+import com.anuragdeshpande.printhive.webclient.ui.ServerSetupScreen
 import com.anuragdeshpande.printhive.webclient.ui.WebClientScreen
 import com.anuragdeshpande.printhive.webclient.ui.theme.PrintHiveTheme
 
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val postNotifGranted = permissions[Manifest.permission.POST_NOTIFICATIONS] ?: true
-        if (postNotifGranted) {
+        if (postNotifGranted && prefs.isSetupCompleted) {
             PrintHiveWebSocketService.start(this)
         }
     }
@@ -72,44 +73,57 @@ class MainActivity : ComponentActivity() {
         setContent {
             PrintHiveTheme {
                 var serverUrl by remember { mutableStateOf(prefs.serverUrl) }
+                var isSetupDone by remember { mutableStateOf(prefs.isSetupCompleted) }
                 var showConfigDialog by remember { mutableStateOf(false) }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    WebClientScreen(
-                        currentUrl = serverUrl,
-                        onOpenServerConfig = { showConfigDialog = true },
-                        onScanNfcRequested = {
-                            if (!nfcHandler.isNfcAvailable) {
-                                Toast.makeText(this, "NFC is not enabled or supported on this device", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(this, "Tap an NFC tag against the back of your phone", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onFilePathCallback = { callback ->
-                            filePathCallback = callback
-                            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "*/*"
-                            }
-                            filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
-                        }
-                    )
-
-                    if (showConfigDialog) {
-                        ServerConfigDialog(
+                    if (!isSetupDone) {
+                        ServerSetupScreen(
                             initialUrl = serverUrl,
-                            onDismiss = { showConfigDialog = false },
-                            onSaveUrl = { newUrl ->
+                            onConnect = { newUrl ->
                                 prefs.serverUrl = newUrl
+                                prefs.isSetupCompleted = true
                                 serverUrl = prefs.serverUrl
-                                showConfigDialog = false
-                                // Restart WebSocket Service with new URL
+                                isSetupDone = true
                                 PrintHiveWebSocketService.start(this)
                             }
                         )
+                    } else {
+                        WebClientScreen(
+                            currentUrl = serverUrl,
+                            onOpenServerConfig = { showConfigDialog = true },
+                            onScanNfcRequested = {
+                                if (!nfcHandler.isNfcAvailable) {
+                                    Toast.makeText(this, "NFC is not enabled or supported on this device", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(this, "Tap an NFC tag against the back of your phone", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onFilePathCallback = { callback ->
+                                filePathCallback = callback
+                                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                    addCategory(Intent.CATEGORY_OPENABLE)
+                                    type = "*/*"
+                                }
+                                filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
+                            }
+                        )
+
+                        if (showConfigDialog) {
+                            ServerConfigDialog(
+                                initialUrl = serverUrl,
+                                onDismiss = { showConfigDialog = false },
+                                onSaveUrl = { newUrl ->
+                                    prefs.serverUrl = newUrl
+                                    serverUrl = prefs.serverUrl
+                                    showConfigDialog = false
+                                    PrintHiveWebSocketService.start(this)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -131,7 +145,7 @@ class MainActivity : ComponentActivity() {
 
         if (permissionsToRequest.isNotEmpty()) {
             requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
-        } else {
+        } else if (prefs.isSetupCompleted) {
             PrintHiveWebSocketService.start(this)
         }
     }

@@ -14,10 +14,10 @@ class ServerPreferences(context: Context) {
             prefs.edit().putString(KEY_SERVER_URL, normalized).apply()
         }
 
-    var apiKey: String
-        get() = prefs.getString(KEY_API_KEY, "") ?: ""
+    var isSetupCompleted: Boolean
+        get() = prefs.getBoolean(KEY_SETUP_COMPLETED, false)
         set(value) {
-            prefs.edit().putString(KEY_API_KEY, value.trim()).apply()
+            prefs.edit().putBoolean(KEY_SETUP_COMPLETED, value).apply()
         }
 
     val webSocketUrl: String
@@ -32,7 +32,7 @@ class ServerPreferences(context: Context) {
 
     companion object {
         private const val KEY_SERVER_URL = "server_url"
-        private const val KEY_API_KEY = "api_key"
+        private const val KEY_SETUP_COMPLETED = "setup_completed"
         const val DEFAULT_SERVER_URL = "http://192.168.1.102:8000"
     }
 }
