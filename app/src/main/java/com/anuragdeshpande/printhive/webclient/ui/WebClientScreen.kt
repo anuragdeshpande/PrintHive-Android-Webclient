@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.dp
 import com.anuragdeshpande.printhive.webclient.ui.components.PrintHiveWebView
 
 /**
- * 100% Full-Screen Immersive WebView Mode for PrintHive.
- * Removes top app bar completely for an edge-to-edge native web application feel.
- * Includes a subtle floating server setup button for quick access anytime.
+ * Full-Screen Immersive WebView Mode for PrintHive.
+ * Applies statusBarsPadding() to ensure the web header, hamburger menu, and logo
+ * render safely below the status bar cutout and notch area.
  */
 @Composable
 fun WebClientScreen(
@@ -52,7 +52,7 @@ fun WebClientScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 100% Edge-to-Edge WebView container
+        // Safe WebView container respecting Android system status bar insets
         PrintHiveWebView(
             url = currentUrl,
             onPageStarted = { isLoading = true },
@@ -60,7 +60,9 @@ fun WebClientScreen(
             onScanNfcRequested = onScanNfcRequested,
             onFilePathCallback = onFilePathCallback,
             onWebViewCreated = { activeWebView = it },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
         )
 
         // Subtle loading indicator pinned to top safe area
@@ -91,7 +93,7 @@ fun WebClientScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = 12.dp, end = 16.dp)
+                .padding(top = 8.dp, end = 16.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Dns,
