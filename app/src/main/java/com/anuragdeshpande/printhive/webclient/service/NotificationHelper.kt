@@ -24,7 +24,7 @@ object NotificationHelper {
                 "Live Print Updates",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Ongoing progress indicators for active 3D prints"
+                description = "Android 16+ Prominent Live Updates & Ongoing Print Status"
                 setShowBadge(true)
             }
 
@@ -42,40 +42,92 @@ object NotificationHelper {
         }
     }
 
+    /**
+     * Builds an Android 16+ Prominent Live Update / Ongoing Interactive Notification
+     * styled after modern lock-screen live activity widgets.
+     */
     fun buildLivePrintNotification(
         context: Context,
         printerName: String,
         jobName: String,
         progressPercent: Int,
         timeRemainingText: String,
-        layerInfo: String = ""
+        layerInfo: String = "",
+        printerId: Int = 1,
+        isPaused: Boolean = false
     ): Notification {
-        val intent = Intent(context, MainActivity::class.java).apply {
+        val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val pendingIntent = PendingIntent.getActivity(
+        val openPendingIntent = PendingIntent.getActivity(
             context,
             0,
-            intent,
+            openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Pause / Resume Broadcast Intent
+        val pauseActionIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = if (isPaused) NotificationActionReceiver.ACTION_RESUME_PRINT else NotificationActionReceiver.ACTION_PAUSE_PRINT
+            putExtra(NotificationActionReceiver.EXTRA_PRINTER_ID, printerId)
+        }
+        val pausePendingIntent = PendingIntent.getBroadcast(
+            context,
+            1,
+            pauseActionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Stop Broadcast Intent
+        val stopActionIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_STOP_PRINT
+            putExtra(NotificationActionReceiver.EXTRA_PRINTER_ID, printerId)
+        }
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            context,
+            2,
+            stopActionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Content Formatting
         val titleText = "🖨️ $printerName • $progressPercent%"
-        val contentText = buildString {
-            append(jobName)
-            if (timeRemainingText.isNotBlank()) append(" • ").append(timeRemainingText)
-            if (layerInfo.isNotBlank()) append(" (").append(layerInfo).append(")")
+        val subText = if (timeRemainingText.isNotBlank()) "$timeRemainingText remaining" else "Active Print"
+        
+        val expandedText = buildString {
+            append("Job: ").append(jobName)
+            if (layerInfo.isNotBlank()) append("\nLayer: ").append(layerInfo)
+            if (timeRemainingText.isNotBlank()) append(" • ETA ").append(timeRemainingText)
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_LIVE_PRINTS)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setContentTitle(titleText)
-            .setContentText(contentText)
-            .setContentIntent(pendingIntent)
+            .setContentText("$jobName • $subText")
+            .setSubText(subText)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(openPendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(expandedText))
             .setProgress(100, progressPercent.coerceIn(0, 100), false)
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                if (isPaused) "Resume" else "Pause",
+                pausePendingIntent
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Stop",
+                stopPendingIntent
+            )
+            .addAction(
+                android.R.drawable.ic_menu_view,
+                "Open App",
+                openPendingIntent
+            )
 
         if (Build.VERSION.SDK_INT >= 31) {
             builder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
@@ -115,10 +167,5 @@ object NotificationHelper {
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(notificationId, notification)
-    }
-
-    fun cancelLivePrintNotification(context: Context) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.cancel(NOTIFICATION_ID_LIVE_PRINT)
     }
 }
