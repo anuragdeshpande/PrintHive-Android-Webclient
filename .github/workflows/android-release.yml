@@ -1,0 +1,80 @@
+name: PrintHive Webclient Release & CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Build, Test & Publish Release APKs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17 (JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission for Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Run Android Unit Tests
+        run: ./gradlew test --stacktrace
+
+      - name: Build Release & Debug APKs
+        run: ./gradlew assembleRelease assembleDebug --stacktrace
+
+      - name: Prepare Release Artifact Names
+        id: prep
+        run: |
+          VERSION="${GITHUB_REF_NAME:-v1.0.0}"
+          if [[ "$VERSION" == "main" ]]; then
+            VERSION="v1.0.0-build.${GITHUB_RUN_NUMBER}"
+          fi
+          mkdir -p release-artifacts
+          cp app/build/outputs/apk/release/app-release-unsigned.apk "release-artifacts/PrintHive-Webclient-${VERSION}-release.apk" 2>/dev/null || cp app/build/outputs/apk/release/app-release.apk "release-artifacts/PrintHive-Webclient-${VERSION}-release.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "release-artifacts/PrintHive-Webclient-${VERSION}-debug.apk"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Generate Conventional Commit Release Notes
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configurationJson: |
+            {
+              "categories": [
+                { "title": "🚀 Features", "labels": ["feat", "feature"] },
+                { "title": "🐛 Bug Fixes", "labels": ["fix", "bug"] },
+                { "title": "🎨 UI & Styling", "labels": ["style", "ui"] },
+                { "title": "⚙️ CI/CD & Maintenance", "labels": ["ci", "chore"] }
+              ]
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: ${{ steps.prep.outputs.version }}
+          name: "PrintHive Android Webclient ${{ steps.prep.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          generate_release_notes: true
+          files: |
+            release-artifacts/PrintHive-Webclient-*-release.apk
+            release-artifacts/PrintHive-Webclient-*-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
