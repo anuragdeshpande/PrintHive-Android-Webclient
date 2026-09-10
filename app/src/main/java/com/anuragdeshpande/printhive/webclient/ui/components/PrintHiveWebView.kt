@@ -165,6 +165,7 @@ fun PrintHiveWebView(
                 }
 
                 onWebViewCreated(this)
+                clearCache(false)
                 loadUrl(url)
             }
         },
