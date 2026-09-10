@@ -30,25 +30,32 @@ class NotificationActionReceiver : BroadcastReceiver() {
         when (action) {
             ACTION_PAUSE_PRINT -> {
                 Toast.makeText(context, "Sending Pause command...", Toast.LENGTH_SHORT).show()
-                sendPrinterControlCommand(baseUrl, printerId, "pause")
+                sendPrinterControlCommand(context, baseUrl, printerId, "pause")
             }
             ACTION_STOP_PRINT -> {
                 Toast.makeText(context, "Sending Stop command...", Toast.LENGTH_SHORT).show()
-                sendPrinterControlCommand(baseUrl, printerId, "stop")
+                sendPrinterControlCommand(context, baseUrl, printerId, "stop")
             }
             ACTION_RESUME_PRINT -> {
                 Toast.makeText(context, "Sending Resume command...", Toast.LENGTH_SHORT).show()
-                sendPrinterControlCommand(baseUrl, printerId, "resume")
+                sendPrinterControlCommand(context, baseUrl, printerId, "resume")
             }
         }
     }
 
-    private fun sendPrinterControlCommand(baseUrl: String, printerId: Int, command: String) {
+    private fun sendPrinterControlCommand(context: Context, baseUrl: String, printerId: Int, command: String) {
+        val prefs = ServerPreferences(context)
         val url = "$baseUrl/api/v1/printers/$printerId/$command"
-        val request = Request.Builder()
+        val requestBuilder = Request.Builder()
             .url(url)
             .post("{}".toRequestBody("application/json".toMediaType()))
-            .build()
+
+        val token = prefs.authToken
+        if (!token.isNullOrBlank()) {
+            requestBuilder.addHeader("Authorization", "Bearer $token")
+        }
+
+        val request = requestBuilder.build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {

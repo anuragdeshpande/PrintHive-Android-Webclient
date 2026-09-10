@@ -61,4 +61,14 @@ class PrintHiveJsInterface(
     fun getServerUrl(): String {
         return prefs.serverUrl
     }
+
+    @JavascriptInterface
+    fun setAuthToken(token: String?) {
+        prefs.authToken = token
+    }
+
+    @JavascriptInterface
+    fun getAuthToken(): String {
+        return prefs.authToken ?: ""
+    }
 }

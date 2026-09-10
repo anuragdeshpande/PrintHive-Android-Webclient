@@ -27,6 +27,7 @@ fun PrintHiveWebView(
     onScanNfcRequested: () -> Unit,
     onFilePathCallback: (ValueCallback<Array<Uri>>?) -> Unit,
     modifier: Modifier = Modifier,
+    onConnectionError: () -> Unit = {},
     onWebViewCreated: (WebView) -> Unit = {}
 ) {
     AndroidView(
@@ -71,6 +72,77 @@ fun PrintHiveWebView(
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         onPageFinished()
+
+                        val prefs = com.anuragdeshpande.printhive.webclient.data.ServerPreferences(context)
+                        val savedToken = prefs.authToken
+
+                        // If we have a saved token in Android prefs but localStorage is empty, inject it
+                        if (!savedToken.isNullOrBlank()) {
+                            val injectJs = """
+                                (function() {
+                                    try {
+                                        var current = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+                                        if (!current) {
+                                            localStorage.setItem('auth_token', '$savedToken');
+                                            sessionStorage.setItem('auth_token', '$savedToken');
+                                            if (window.location.pathname === '/login') {
+                                                window.location.href = '/';
+                                            }
+                                        }
+                                    } catch(e) {}
+                                })()
+                            """.trimIndent()
+                            view?.evaluateJavascript(injectJs, null)
+                        }
+
+                        // Extract session/persistent auth_token from web client storage
+                        view?.evaluateJavascript(
+                            "(function(){ try { return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || ''; } catch(e){return '';} })()"
+                        ) { result ->
+                            val token = result?.trim('"', ' ', '\\')
+                            if (!token.isNullOrBlank() && token != "null") {
+                                if (prefs.authToken != token) {
+                                    prefs.authToken = token
+                                    com.anuragdeshpande.printhive.webclient.service.PrintHiveWebSocketService.start(view.context)
+                                }
+                            }
+                        }
+                    }
+
+                    @SuppressLint("WebViewClientOnReceivedSslError")
+                    override fun onReceivedSslError(
+                        view: WebView?,
+                        handler: android.webkit.SslErrorHandler?,
+                        error: android.net.http.SslError?
+                    ) {
+                        // Allow local / homelab self-signed certificates so the screen doesn't stay black
+                        handler?.proceed()
+                    }
+
+                    override fun onReceivedError(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                        error: android.webkit.WebResourceError?
+                    ) {
+                        super.onReceivedError(view, request, error)
+                        onPageFinished()
+                        if (request?.isForMainFrame == true) {
+                            onConnectionError()
+                        }
+                    }
+
+                    override fun onReceivedHttpError(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                        errorResponse: android.webkit.WebResourceResponse?
+                    ) {
+                        super.onReceivedHttpError(view, request, errorResponse)
+                        if (request?.isForMainFrame == true) {
+                            val code = errorResponse?.statusCode ?: 200
+                            if (code >= 400) {
+                                onConnectionError()
+                            }
+                        }
                     }
 
                     override fun shouldOverrideUrlLoading(
@@ -97,8 +169,17 @@ fun PrintHiveWebView(
             }
         },
         update = { webView ->
-            if (webView.url != url && !url.isBlank()) {
-                webView.loadUrl(url)
+            val currentWebUrl = webView.url
+            if (currentWebUrl.isNullOrBlank()) {
+                if (url.isNotBlank()) webView.loadUrl(url)
+            } else {
+                val currentUri = try { Uri.parse(currentWebUrl) } catch (_: Exception) { null }
+                val targetUri = try { Uri.parse(url) } catch (_: Exception) { null }
+                val currentHostPort = "${currentUri?.scheme}://${currentUri?.host}:${currentUri?.port}"
+                val targetHostPort = "${targetUri?.scheme}://${targetUri?.host}:${targetUri?.port}"
+                if (targetUri?.host != null && currentHostPort != targetHostPort && url.isNotBlank()) {
+                    webView.loadUrl(url)
+                }
             }
         }
     )

@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,10 +42,12 @@ import com.anuragdeshpande.printhive.webclient.R
 
 @Composable
 fun ServerSetupScreen(
-    initialUrl: String,
-    onConnect: (String) -> Unit
+    initialLocalUrl: String,
+    initialRemoteUrl: String,
+    onConnect: (localUrl: String, remoteUrl: String) -> Unit
 ) {
-    var urlText by remember { mutableStateOf(initialUrl) }
+    var localUrlText by remember { mutableStateOf(initialLocalUrl) }
+    var remoteUrlText by remember { mutableStateOf(initialRemoteUrl) }
 
     Box(
         modifier = Modifier
@@ -53,11 +58,11 @@ fun ServerSetupScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Render actual PrintHive branding asset instead of generic emoji
             Image(
                 painter = painterResource(id = R.drawable.printhive_header_logo),
                 contentDescription = "PrintHive Logo",
@@ -66,7 +71,7 @@ fun ServerSetupScreen(
                     .height(80.dp)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "Welcome to PrintHive",
@@ -75,17 +80,17 @@ fun ServerSetupScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Enter your local PrintHive server URL to launch full edge-to-edge web app mode.",
+                text = "Configure your Home LAN and Remote Tailscale endpoints for seamless dual-network access.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Card(
                 shape = RoundedCornerShape(24.dp),
@@ -99,14 +104,14 @@ fun ServerSetupScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     OutlinedTextField(
-                        value = urlText,
-                        onValueChange = { urlText = it },
-                        label = { Text("Server URL") },
-                        placeholder = { Text("http://192.168.1.102:8000") },
+                        value = localUrlText,
+                        onValueChange = { localUrlText = it },
+                        label = { Text("Home LAN Server URL") },
+                        placeholder = { Text("http://192.168.1.250:8000") },
                         singleLine = true,
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Link,
+                                imageVector = Icons.Default.Home,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -119,12 +124,35 @@ fun ServerSetupScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedTextField(
+                        value = remoteUrlText,
+                        onValueChange = { remoteUrlText = it },
+                        label = { Text("Remote / Tailscale URL") },
+                        placeholder = { Text("http://100.65.78.92:8000") },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Cloud,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Button(
                         onClick = {
-                            if (urlText.isNotBlank()) {
-                                onConnect(urlText)
+                            if (localUrlText.isNotBlank() || remoteUrlText.isNotBlank()) {
+                                onConnect(localUrlText, remoteUrlText)
                             }
                         },
                         shape = RoundedCornerShape(14.dp),

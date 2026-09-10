@@ -11,14 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -59,6 +52,7 @@ fun WebClientScreen(
             onPageFinished = { isLoading = false },
             onScanNfcRequested = onScanNfcRequested,
             onFilePathCallback = onFilePathCallback,
+            onConnectionError = onOpenServerConfig,
             onWebViewCreated = { activeWebView = it },
             modifier = Modifier
                 .fillMaxSize()
@@ -80,24 +74,6 @@ fun WebClientScreen(
                     .height(3.dp),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = Color.Transparent
-            )
-        }
-
-        // Subtle floating gear button at top-right for changing Server IP
-        FloatingActionButton(
-            onClick = onOpenServerConfig,
-            shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-            contentColor = MaterialTheme.colorScheme.primary,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(top = 8.dp, end = 16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Dns,
-                contentDescription = "Server Configuration"
             )
         }
     }
