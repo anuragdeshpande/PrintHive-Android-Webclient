@@ -165,7 +165,10 @@ fun PrintHiveWebView(
                 }
 
                 onWebViewCreated(this)
-                clearCache(false)
+                clearCache(true)
+                try {
+                    android.webkit.WebStorage.getInstance().deleteAllData()
+                } catch (_: Exception) {}
                 loadUrl(url)
             }
         },
