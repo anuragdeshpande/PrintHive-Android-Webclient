@@ -27,7 +27,7 @@ import com.anuragdeshpande.printhive.webclient.ui.components.PrintHiveWebView
 
 /**
  * Full-Screen Immersive WebView Mode for PrintHive.
- * Applies statusBarsPadding() to ensure the web header, hamburger menu, and logo
+ * Applies statusBarsPadding() to ensure the web header and logo
  * render safely below the status bar cutout and notch area.
  */
 @Composable

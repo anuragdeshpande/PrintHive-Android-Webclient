@@ -64,7 +64,11 @@ class PrintHiveJsInterface(
 
     @JavascriptInterface
     fun setAuthToken(token: String?) {
-        prefs.authToken = token
+        val clean = if (token.isNullOrBlank() || token == "null") null else token
+        prefs.authToken = clean
+        if (clean != null) {
+            com.anuragdeshpande.printhive.webclient.service.PrintHiveWebSocketService.start(context)
+        }
     }
 
     @JavascriptInterface
